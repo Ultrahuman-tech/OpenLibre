@@ -115,4 +115,28 @@ public class RawTagData extends RealmObject {
     public byte[] getData() {
         return data;
     }
+
+    public int getHistoryFlags(int index) {
+        return readBits(data, index * tableEntrySize + offsetHistoryTable, 0xe, 0xc);
+    }
+
+    public int getTrendFlags(int index) {
+        return readBits(data, index * tableEntrySize + offsetTrendTable, 0xe, 0xc);
+    }
+
+    private int readBits(byte []buffer, int byteOffset,int  bitOffset, int  bitCount) {
+        if (bitCount == 0) {
+            return 0;
+        }
+        int res = 0;
+        for (int i = 0; i < bitCount; i++) {
+            final int totalBitOffset = byteOffset * 8 + bitOffset + i;
+            final int byte1 = (int)Math.floor(totalBitOffset / 8);
+            final int bit = totalBitOffset % 8;
+            if (totalBitOffset >= 0 && ((buffer[byte1] >> bit) & 0x1) == 1) {
+                res = res | (1 << i);
+            }
+        }
+        return res;
+    }
 }

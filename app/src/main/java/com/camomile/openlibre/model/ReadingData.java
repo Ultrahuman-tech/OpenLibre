@@ -34,6 +34,7 @@ public class ReadingData extends RealmObject {
     public static final int numHistoryValues = 32;
     public static final int historyIntervalInMinutes = 15;
     public static final int numTrendValues = 16;
+    public static final int errorFlags = 800;
 
     @PrimaryKey
     private String id;
@@ -43,6 +44,8 @@ public class ReadingData extends RealmObject {
     private int timezoneOffsetInMinutes;
     private RealmList<GlucoseData> trend = new RealmList<>();
     private RealmList<GlucoseData> history = new RealmList<>();
+
+    private List<GlucoseData> errorList = new ArrayList<>();
 
     public ReadingData() {}
     public ReadingData(RawTagData rawTagData) {
@@ -94,13 +97,19 @@ public class ReadingData extends RealmObject {
             int index = (indexTrend + counter) % numTrendValues;
 
             int glucoseLevelRaw = rawTagData.getTrendValue(index);
+            int flags = rawTagData.getTrendFlags(index);
             // skip zero values if the sensor has not filled the ring buffer yet completely
-            if (glucoseLevelRaw > 0) {
+            if (glucoseLevelRaw > 0 && flags != errorFlags) {
                 int dataAgeInMinutes = numTrendValues - counter;
                 int ageInSensorMinutes = sensorAgeInMinutes - dataAgeInMinutes;
                 long dataDate = lastReadingDate + (long) (TimeUnit.MINUTES.toMillis(ageInSensorMinutes - lastSensorAgeInMinutes) * timeDriftFactor);
 
                 trend.add(new GlucoseData(sensor, ageInSensorMinutes, timezoneOffsetInMinutes, glucoseLevelRaw, true, dataDate));
+            } else if (flags == errorFlags) {
+                int dataAgeInMinutes = numTrendValues - counter;
+                int ageInSensorMinutes = sensorAgeInMinutes - dataAgeInMinutes;
+                long dataDate = lastReadingDate + (long) (TimeUnit.MINUTES.toMillis(ageInSensorMinutes - lastSensorAgeInMinutes) * timeDriftFactor);
+                errorList.add(new GlucoseData(sensor, ageInSensorMinutes, timezoneOffsetInMinutes, glucoseLevelRaw, true, dataDate));
             }
         }
 
@@ -114,8 +123,10 @@ public class ReadingData extends RealmObject {
             int index = (indexHistory + counter) % numHistoryValues;
 
             int glucoseLevelRaw = rawTagData.getHistoryValue(index);
+            int flags = rawTagData.getHistoryFlags(index);
             // skip zero values if the sensor has not filled the ring buffer yet completely
-            if (glucoseLevelRaw > 0) {
+            // and skip if we have any error flags
+            if (glucoseLevelRaw > 0  && flags != errorFlags) {
                 int dataAgeInMinutes = mostRecentHistoryAgeInMinutes + (numHistoryValues - (counter + 1)) * historyIntervalInMinutes;
                 int ageInSensorMinutes = sensorAgeInMinutes - dataAgeInMinutes;
 
@@ -124,6 +135,11 @@ public class ReadingData extends RealmObject {
                     glucoseLevels.add(glucoseLevelRaw);
                     ageInSensorMinutesList.add(ageInSensorMinutes);
                 }
+            } else if (flags == errorFlags) {
+                int dataAgeInMinutes = mostRecentHistoryAgeInMinutes + (numHistoryValues - (counter + 1)) * historyIntervalInMinutes;
+                int ageInSensorMinutes = sensorAgeInMinutes - dataAgeInMinutes;
+                long dataDate = lastReadingDate + (long) (TimeUnit.MINUTES.toMillis(ageInSensorMinutes - lastSensorAgeInMinutes) * timeDriftFactor);
+                errorList.add(new GlucoseData(sensor, ageInSensorMinutes, timezoneOffsetInMinutes, glucoseLevelRaw, false, dataDate));
             }
         }
 
@@ -303,5 +319,9 @@ public class ReadingData extends RealmObject {
                 ", trend=" + trendString.toString() +
                 ", history=" + historyString.toString() +
                 '}';
+    }
+
+    public List<GlucoseData> getErrorList() {
+        return errorList;
     }
 }
