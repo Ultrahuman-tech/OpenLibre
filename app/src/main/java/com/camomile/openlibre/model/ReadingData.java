@@ -45,7 +45,7 @@ public class ReadingData extends RealmObject {
     private RealmList<GlucoseData> trend = new RealmList<>();
     private RealmList<GlucoseData> history = new RealmList<>();
 
-    private List<GlucoseData> errorList = new ArrayList<>();
+    private RealmList<GlucoseData> errorList = new RealmList<>();
 
     public ReadingData() {}
     public ReadingData(RawTagData rawTagData) {
