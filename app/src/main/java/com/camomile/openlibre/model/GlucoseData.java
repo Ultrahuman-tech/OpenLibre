@@ -160,6 +160,7 @@ public class GlucoseData extends RealmObject implements Comparable<GlucoseData> 
         return Objects.hash(getId(), getSensor(), isTrendData(), getAgeInSensorMinutes(), getGlucoseLevelRaw(), getDate(), getTimezoneOffsetInMinutes());
     }
 
+/*
     @NonNull
     @Override
     public String toString() {
@@ -171,6 +172,15 @@ public class GlucoseData extends RealmObject implements Comparable<GlucoseData> 
                 ", glucoseLevelRaw=" + glucoseLevelRaw +
                 ", date=" + date +
                 ", timezoneOffsetInMinutes=" + timezoneOffsetInMinutes +
+                '}';
+    }
+*/
+
+    @NonNull
+    @Override
+    public String toString() {
+        return "GlucoseData{glucoseLevelRaw=" + glucoseLevelRaw/10.0f +
+                ", date=" + date +
                 '}';
     }
 }
