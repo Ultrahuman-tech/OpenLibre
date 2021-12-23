@@ -133,7 +133,7 @@ public class GlucoseData extends RealmObject implements Comparable<GlucoseData> 
         this.timezoneOffsetInMinutes = timezoneOffsetInMinutes;
     }
 
-    int getGlucoseLevelRaw() {
+    public int getGlucoseLevelRaw() {
         return glucoseLevelRaw;
     }
 
