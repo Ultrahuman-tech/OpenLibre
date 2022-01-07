@@ -98,14 +98,12 @@ public class ReadingData extends RealmObject {
 
             int glucoseLevelRaw = rawTagData.getTrendValue(index);
             int flags = rawTagData.getTrendFlags(index);
-            // skip zero values if the sensor has not filled the ring buffer yet completely
-            if (glucoseLevelRaw > 0 && (!rawTagData.isCheckForErrorFlags() || flags != errorFlags)) {
+            if (!rawTagData.isCheckForErrorFlags() || flags != errorFlags) {
                 int dataAgeInMinutes = numTrendValues - counter;
                 int ageInSensorMinutes = sensorAgeInMinutes - dataAgeInMinutes;
                 long dataDate = lastReadingDate + (long) (TimeUnit.MINUTES.toMillis(ageInSensorMinutes - lastSensorAgeInMinutes) * timeDriftFactor);
-
                 trend.add(new GlucoseData(sensor, ageInSensorMinutes, timezoneOffsetInMinutes, glucoseLevelRaw, true, dataDate));
-            } else if (rawTagData.isCheckForErrorFlags() && flags == errorFlags) {
+            } else if (rawTagData.isCheckForErrorFlags()) {
                 int dataAgeInMinutes = numTrendValues - counter;
                 int ageInSensorMinutes = sensorAgeInMinutes - dataAgeInMinutes;
                 long dataDate = lastReadingDate + (long) (TimeUnit.MINUTES.toMillis(ageInSensorMinutes - lastSensorAgeInMinutes) * timeDriftFactor);
