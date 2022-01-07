@@ -99,13 +99,13 @@ public class ReadingData extends RealmObject {
             int glucoseLevelRaw = rawTagData.getTrendValue(index);
             int flags = rawTagData.getTrendFlags(index);
             // skip zero values if the sensor has not filled the ring buffer yet completely
-            if (glucoseLevelRaw > 0 && flags != errorFlags) {
+            if (glucoseLevelRaw > 0 && (!rawTagData.isCheckForErrorFlags() || flags != errorFlags)) {
                 int dataAgeInMinutes = numTrendValues - counter;
                 int ageInSensorMinutes = sensorAgeInMinutes - dataAgeInMinutes;
                 long dataDate = lastReadingDate + (long) (TimeUnit.MINUTES.toMillis(ageInSensorMinutes - lastSensorAgeInMinutes) * timeDriftFactor);
 
                 trend.add(new GlucoseData(sensor, ageInSensorMinutes, timezoneOffsetInMinutes, glucoseLevelRaw, true, dataDate));
-            } else if (flags == errorFlags) {
+            } else if (rawTagData.isCheckForErrorFlags() && flags == errorFlags) {
                 int dataAgeInMinutes = numTrendValues - counter;
                 int ageInSensorMinutes = sensorAgeInMinutes - dataAgeInMinutes;
                 long dataDate = lastReadingDate + (long) (TimeUnit.MINUTES.toMillis(ageInSensorMinutes - lastSensorAgeInMinutes) * timeDriftFactor);
@@ -126,7 +126,7 @@ public class ReadingData extends RealmObject {
             int flags = rawTagData.getHistoryFlags(index);
             // skip zero values if the sensor has not filled the ring buffer yet completely
             // and skip if we have any error flags
-            if (glucoseLevelRaw > 0  && flags != errorFlags) {
+            if (glucoseLevelRaw > 0  && (!rawTagData.isCheckForErrorFlags() || flags != errorFlags)) {
                 int dataAgeInMinutes = mostRecentHistoryAgeInMinutes + (numHistoryValues - (counter + 1)) * historyIntervalInMinutes;
                 int ageInSensorMinutes = sensorAgeInMinutes - dataAgeInMinutes;
 
@@ -135,7 +135,7 @@ public class ReadingData extends RealmObject {
                     glucoseLevels.add(glucoseLevelRaw);
                     ageInSensorMinutesList.add(ageInSensorMinutes);
                 }
-            } else if (flags == errorFlags) {
+            } else if (rawTagData.isCheckForErrorFlags() && flags == errorFlags) {
                 int dataAgeInMinutes = mostRecentHistoryAgeInMinutes + (numHistoryValues - (counter + 1)) * historyIntervalInMinutes;
                 int ageInSensorMinutes = sensorAgeInMinutes - dataAgeInMinutes;
                 long dataDate = lastReadingDate + (long) (TimeUnit.MINUTES.toMillis(ageInSensorMinutes - lastSensorAgeInMinutes) * timeDriftFactor);

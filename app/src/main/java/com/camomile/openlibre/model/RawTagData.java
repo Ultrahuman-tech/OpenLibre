@@ -29,11 +29,17 @@ public class RawTagData extends RealmObject {
     private int timezoneOffsetInMinutes;
     private String tagId;
     private byte[] data;
+    private boolean checkForErrorFlags = false;
 
     public RawTagData() {}
 
     public RawTagData(String tagId, byte[] data) {
         this(tagId, System.currentTimeMillis(), data);
+    }
+
+    public RawTagData(String tagId, byte[] data, boolean checkForErrorFlags) {
+        this(tagId, System.currentTimeMillis(), data);
+        this.checkForErrorFlags = checkForErrorFlags;
     }
 
     public RawTagData(String tagId, long utc_date, byte[] data) {
@@ -138,5 +144,9 @@ public class RawTagData extends RealmObject {
             }
         }
         return res;
+    }
+
+    public boolean isCheckForErrorFlags() {
+        return checkForErrorFlags;
     }
 }
