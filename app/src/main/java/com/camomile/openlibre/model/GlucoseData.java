@@ -26,9 +26,10 @@ public class GlucoseData extends RealmObject implements Comparable<GlucoseData> 
     private SensorData sensor;
     private boolean isTrendData = false;
     private int ageInSensorMinutes = -1;
-    private int glucoseLevelRaw = -1; // in mg/l = 0.1 mg/dl
+    public int glucoseLevelRaw = -1; // in mg/l = 0.1 mg/dl
     private long date;
     private int timezoneOffsetInMinutes;
+    private String formattedTime = null;
 
     public GlucoseData() {}
     public GlucoseData(SensorData sensor, int ageInSensorMinutes, int timezoneOffsetInMinutes, int glucoseLevelRaw, boolean isTrendData, long date) {
@@ -40,6 +41,12 @@ public class GlucoseData extends RealmObject implements Comparable<GlucoseData> 
         this.date = date;
         id = generateId(sensor, ageInSensorMinutes, isTrendData, glucoseLevelRaw);
     }
+
+    public GlucoseData(SensorData sensor, int ageInSensorMinutes, int timezoneOffsetInMinutes, int glucoseLevelRaw, boolean isTrendData, long date, String formattedTime) {
+        this(sensor, ageInSensorMinutes, timezoneOffsetInMinutes, glucoseLevelRaw, isTrendData, date);
+        this.formattedTime = formattedTime;
+    }
+
     public GlucoseData(SensorData sensor, int ageInSensorMinutes, int timezoneOffsetInMinutes, int glucoseLevelRaw, boolean isTrendData) {
         this(sensor, ageInSensorMinutes, timezoneOffsetInMinutes, glucoseLevelRaw, isTrendData, sensor.getStartDate() + TimeUnit.MINUTES.toMillis(ageInSensorMinutes));
     }
@@ -133,7 +140,7 @@ public class GlucoseData extends RealmObject implements Comparable<GlucoseData> 
         this.timezoneOffsetInMinutes = timezoneOffsetInMinutes;
     }
 
-    public int getGlucoseLevelRaw() {
+    int getGlucoseLevelRaw() {
         return glucoseLevelRaw;
     }
 
@@ -179,8 +186,6 @@ public class GlucoseData extends RealmObject implements Comparable<GlucoseData> 
     @NonNull
     @Override
     public String toString() {
-        return "GlucoseData{glucoseLevelRaw=" + glucoseLevelRaw/10.0f +
-                ", date=" + date +
-                '}';
+        return "GlucoseValue =" + glucoseLevelRaw + ", time=" + formattedTime + "\n" ;
     }
 }

@@ -33,6 +33,10 @@ public class SensorData extends RealmObject {
         this.startDate = sensor.getStartDate();
     }
 
+    public SensorData(String id) {
+        this.id = id;
+    }
+
     public String getTagId() {
         return id.substring(7);
     }
