@@ -209,6 +209,10 @@ public class GlucoseData extends RealmObject implements Comparable<GlucoseData> 
                 ", glucoseLevelRaw=" + glucoseLevelRaw +
                 ", date=" + date +
                 ", timezoneOffsetInMinutes=" + timezoneOffsetInMinutes +
+                ", rawTemperature=" + rawTemperature +
+                ", temperatureAdjustment=" + temperatureAdjustment +
+                ", hasError=" + hasError +
+                ", error =" + error +
                 '}';
     }
 }
