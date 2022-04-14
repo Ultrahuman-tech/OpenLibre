@@ -130,6 +130,34 @@ public class RawTagData extends RealmObject {
         return readBits(data, index * tableEntrySize + offsetTrendTable, 0xe, 0xc);
     }
 
+    //val temperature = readBits(data, offset, 0x1a, 0xc).shl(2)
+    //        var temperatureAdjustment = readBits(data, offset, 0x26, 0x9) shl 2
+    //        val negativeAdjustment = readBits(data, offset, 0x2f, 0x1)
+    //        if (negativeAdjustment != 0) { temperatureAdjustment = -temperatureAdjustment }
+    //        val error = (readBits(data, offset, 0xe, 0xb)).toUInt() and 0x1ff.toUInt()
+    //        val hasError = readBits(data, offset, 0x19, 0x1) != 0
+
+    public boolean checkIfErrorData(int index) {
+        return readBits(data, index * tableEntrySize + offsetTrendTable, 0x19, 0x1) != 0;
+    }
+
+    public int getErrorOffset(int index) {
+        return readBits(data, index * tableEntrySize + offsetTrendTable, 0xe, 0xb) & 0x1ff;
+    }
+
+    public int getRawTemperature(int index) {
+        return readBits(data, index * tableEntrySize + offsetTrendTable, 0x1a, 0xc) << 2;
+    }
+
+    public int getTemperatureAdjustment(int index) {
+        int temperatureAdjustment = readBits(data, index * tableEntrySize + offsetTrendTable, 0x26, 0x9) << 2;
+        int negativeAdjustment = readBits(data, index * tableEntrySize + offsetTrendTable, 0x2f, 0x1);
+        if (negativeAdjustment != 0) {
+            temperatureAdjustment = -temperatureAdjustment;
+        }
+        return temperatureAdjustment;
+    }
+
     private int readBits(byte []buffer, int byteOffset,int  bitOffset, int  bitCount) {
         if (bitCount == 0) {
             return 0;

@@ -29,8 +29,29 @@ public class GlucoseData extends RealmObject implements Comparable<GlucoseData> 
     private int glucoseLevelRaw = -1; // in mg/l = 0.1 mg/dl
     private long date;
     private int timezoneOffsetInMinutes;
+    private boolean hasError = false;
+    private int error = -1;
+    private int rawTemperature = 0;
+    private int temperatureAdjustment = 0;
 
     public GlucoseData() {}
+
+    public GlucoseData(SensorData sensor, int ageInSensorMinutes, int timezoneOffsetInMinutes,
+                       int glucoseLevelRaw, boolean isTrendData, long date, int rawTemperature,
+                       int temperatureAdjustment, boolean hasError, int error) {
+        this.sensor = sensor;
+        this.ageInSensorMinutes = ageInSensorMinutes;
+        this.timezoneOffsetInMinutes = timezoneOffsetInMinutes;
+        this.glucoseLevelRaw = glucoseLevelRaw;
+        this.isTrendData = isTrendData;
+        this.date = date;
+        this.temperatureAdjustment = temperatureAdjustment;
+        this.rawTemperature = rawTemperature;
+        this.hasError = hasError;
+        this.error = error;
+        id = generateId(sensor, ageInSensorMinutes, isTrendData, glucoseLevelRaw);
+    }
+
     public GlucoseData(SensorData sensor, int ageInSensorMinutes, int timezoneOffsetInMinutes, int glucoseLevelRaw, boolean isTrendData, long date) {
         this.sensor = sensor;
         this.ageInSensorMinutes = ageInSensorMinutes;
@@ -40,6 +61,7 @@ public class GlucoseData extends RealmObject implements Comparable<GlucoseData> 
         this.date = date;
         id = generateId(sensor, ageInSensorMinutes, isTrendData, glucoseLevelRaw);
     }
+
     public GlucoseData(SensorData sensor, int ageInSensorMinutes, int timezoneOffsetInMinutes, int glucoseLevelRaw, boolean isTrendData) {
         this(sensor, ageInSensorMinutes, timezoneOffsetInMinutes, glucoseLevelRaw, isTrendData, sensor.getStartDate() + TimeUnit.MINUTES.toMillis(ageInSensorMinutes));
     }
@@ -139,6 +161,22 @@ public class GlucoseData extends RealmObject implements Comparable<GlucoseData> 
 
     public String getId() {
         return id;
+    }
+
+    public boolean hasError() {
+        return hasError;
+    }
+
+    public int getError() {
+        return error;
+    }
+
+    public int getRawTemperature() {
+        return rawTemperature;
+    }
+
+    public int getTemperatureAdjustment() {
+        return temperatureAdjustment;
     }
 
     @Override
