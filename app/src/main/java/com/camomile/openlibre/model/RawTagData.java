@@ -30,6 +30,7 @@ public class RawTagData extends RealmObject {
     private String tagId;
     private byte[] data;
     private boolean checkForErrorFlags = false;
+    private CalibrationInfo calibrationInfo = null;
 
     public RawTagData() {}
 
@@ -48,6 +49,7 @@ public class RawTagData extends RealmObject {
         this.tagId = tagId;
         id = String.format(Locale.US, "%s_%d", tagId, date);
         this.data = data.clone();
+        setCalibrationInfo();
     }
 
     int getTrendValue(int index) {
@@ -156,6 +158,29 @@ public class RawTagData extends RealmObject {
             temperatureAdjustment = -temperatureAdjustment;
         }
         return temperatureAdjustment;
+    }
+
+    public CalibrationInfo getCalibrationInfo() {
+        return calibrationInfo;
+    }
+
+    private void setCalibrationInfo() {
+        //        let i1 = readBits(data, 2, 0, 3)
+        //        let i2 = readBits(data, 2, 3, 0xa)
+        //        let i3 = readBits(data, 0x150, 0, 8)
+        //        let i4 = readBits(data, 0x150, 8, 0xe)
+        //        let negativei3 = readBits(data, 0x150, 0x21, 1) != 0
+        //        let i5 = readBits(data, 0x150, 0x28, 0xc) << 2
+        //        let i6 = readBits(data, 0x150, 0x34, 0xc) << 2
+
+        int i1 = readBits(data, 2, 0, 3);
+        int i2 = readBits(data, 2, 3, 0xa);
+        int i3 = readBits(data, 0x150, 0, 8);
+        int i4 = readBits(data, 0x150, 8, 0xe);
+        boolean negativei3 = readBits(data, 0x150, 0x21, 1) != 0;
+        int i5 = readBits(data, 0x150, 0x28, 0xc) << 2;
+        int i6 = readBits(data, 0x150, 0x34, 0xc) << 2;
+        this.calibrationInfo = new CalibrationInfo(i1, i2, negativei3 ? -i3 : i3, i4, i5, i6);
     }
 
     private int readBits(byte []buffer, int byteOffset,int  bitOffset, int  bitCount) {
