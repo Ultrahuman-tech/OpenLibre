@@ -4,6 +4,7 @@ import java.util.Locale;
 import java.util.TimeZone;
 
 import io.realm.RealmObject;
+import io.realm.annotations.Ignore;
 import io.realm.annotations.PrimaryKey;
 
 import static java.lang.Math.max;
@@ -30,6 +31,7 @@ public class RawTagData extends RealmObject {
     private String tagId;
     private byte[] data;
     private boolean checkForErrorFlags = false;
+    @Ignore
     private CalibrationInfo calibrationInfo = null;
 
     public RawTagData() {}
