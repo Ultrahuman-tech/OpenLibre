@@ -4,6 +4,7 @@ import java.util.Locale;
 import java.util.TimeZone;
 
 import io.realm.RealmObject;
+import io.realm.annotations.Ignore;
 import io.realm.annotations.PrimaryKey;
 
 import static java.lang.Math.max;
@@ -30,6 +31,8 @@ public class RawTagData extends RealmObject {
     private String tagId;
     private byte[] data;
     private boolean checkForErrorFlags = false;
+    @Ignore
+    private CalibrationInfo calibrationInfo = null;
 
     public RawTagData() {}
 
@@ -48,6 +51,7 @@ public class RawTagData extends RealmObject {
         this.tagId = tagId;
         id = String.format(Locale.US, "%s_%d", tagId, date);
         this.data = data.clone();
+        setCalibrationInfo();
     }
 
     int getTrendValue(int index) {
@@ -128,6 +132,57 @@ public class RawTagData extends RealmObject {
 
     public int getTrendFlags(int index) {
         return readBits(data, index * tableEntrySize + offsetTrendTable, 0xe, 0xc);
+    }
+
+    //val temperature = readBits(data, offset, 0x1a, 0xc).shl(2)
+    //        var temperatureAdjustment = readBits(data, offset, 0x26, 0x9) shl 2
+    //        val negativeAdjustment = readBits(data, offset, 0x2f, 0x1)
+    //        if (negativeAdjustment != 0) { temperatureAdjustment = -temperatureAdjustment }
+    //        val error = (readBits(data, offset, 0xe, 0xb)).toUInt() and 0x1ff.toUInt()
+    //        val hasError = readBits(data, offset, 0x19, 0x1) != 0
+
+    public boolean checkIfErrorData(int index) {
+        return readBits(data, index * tableEntrySize + offsetTrendTable, 0x19, 0x1) != 0;
+    }
+
+    public int getErrorOffset(int index) {
+        return readBits(data, index * tableEntrySize + offsetTrendTable, 0xe, 0xb) & 0x1ff;
+    }
+
+    public int getRawTemperature(int index) {
+        return readBits(data, index * tableEntrySize + offsetTrendTable, 0x1a, 0xc) << 2;
+    }
+
+    public int getTemperatureAdjustment(int index) {
+        int temperatureAdjustment = readBits(data, index * tableEntrySize + offsetTrendTable, 0x26, 0x9) << 2;
+        int negativeAdjustment = readBits(data, index * tableEntrySize + offsetTrendTable, 0x2f, 0x1);
+        if (negativeAdjustment != 0) {
+            temperatureAdjustment = -temperatureAdjustment;
+        }
+        return temperatureAdjustment;
+    }
+
+    public CalibrationInfo getCalibrationInfo() {
+        return calibrationInfo;
+    }
+
+    private void setCalibrationInfo() {
+        //        let i1 = readBits(data, 2, 0, 3)
+        //        let i2 = readBits(data, 2, 3, 0xa)
+        //        let i3 = readBits(data, 0x150, 0, 8)
+        //        let i4 = readBits(data, 0x150, 8, 0xe)
+        //        let negativei3 = readBits(data, 0x150, 0x21, 1) != 0
+        //        let i5 = readBits(data, 0x150, 0x28, 0xc) << 2
+        //        let i6 = readBits(data, 0x150, 0x34, 0xc) << 2
+
+        int i1 = readBits(data, 2, 0, 3);
+        int i2 = readBits(data, 2, 3, 0xa);
+        int i3 = readBits(data, 0x150, 0, 8);
+        int i4 = readBits(data, 0x150, 8, 0xe);
+        boolean negativei3 = readBits(data, 0x150, 0x21, 1) != 0;
+        int i5 = readBits(data, 0x150, 0x28, 0xc) << 2;
+        int i6 = readBits(data, 0x150, 0x34, 0xc) << 2;
+        this.calibrationInfo = new CalibrationInfo(i1, i2, negativei3 ? -i3 : i3, i4, i5, i6);
     }
 
     private int readBits(byte []buffer, int byteOffset,int  bitOffset, int  bitCount) {
