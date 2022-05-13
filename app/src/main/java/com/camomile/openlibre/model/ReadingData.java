@@ -102,18 +102,13 @@ public class ReadingData extends RealmObject {
             int temperatureAdjustment = rawTagData.getTemperatureAdjustment(index, true);
             boolean isErrorData = rawTagData.checkIfErrorData(index, true);
             int errorOffset = rawTagData.getErrorOffset(index, true);
-            if (!rawTagData.isCheckForErrorFlags() || flags != errorFlags) {
-                int dataAgeInMinutes = numTrendValues - counter;
-                int ageInSensorMinutes = sensorAgeInMinutes - dataAgeInMinutes;
+
+            int dataAgeInMinutes = numTrendValues - counter;
+            int ageInSensorMinutes = sensorAgeInMinutes - dataAgeInMinutes;
+
+            if (ageInSensorMinutes > minSensorAgeInMinutes) {
                 long dataDate = lastReadingDate + (long) (TimeUnit.MINUTES.toMillis(ageInSensorMinutes - lastSensorAgeInMinutes) * timeDriftFactor);
                 trend.add(new GlucoseData(sensor, ageInSensorMinutes, timezoneOffsetInMinutes, glucoseLevelRaw,
-                        true, dataDate, rawTemperature, temperatureAdjustment, isErrorData, errorOffset));
-                Log.d("nfc", "factoryGlucose trend value: " + glucoseLevelRaw + " temperature:" + rawTemperature);
-            } else if (rawTagData.isCheckForErrorFlags()) {
-                int dataAgeInMinutes = numTrendValues - counter;
-                int ageInSensorMinutes = sensorAgeInMinutes - dataAgeInMinutes;
-                long dataDate = lastReadingDate + (long) (TimeUnit.MINUTES.toMillis(ageInSensorMinutes - lastSensorAgeInMinutes) * timeDriftFactor);
-                errorList.add(new GlucoseData(sensor, ageInSensorMinutes, timezoneOffsetInMinutes, glucoseLevelRaw,
                         true, dataDate, rawTemperature, temperatureAdjustment, isErrorData, errorOffset));
             }
         }
@@ -133,23 +128,15 @@ public class ReadingData extends RealmObject {
             int temperatureAdjustment = rawTagData.getTemperatureAdjustment(index, false);
             boolean isErrorData = rawTagData.checkIfErrorData(index, false);
             int errorOffset = rawTagData.getErrorOffset(index, false);
-            // skip zero values if the sensor has not filled the ring buffer yet completely
-            // and skip if we have any error flags
-            if (glucoseLevelRaw > 0  && (!rawTagData.isCheckForErrorFlags() || flags != errorFlags)) {
-                int dataAgeInMinutes = mostRecentHistoryAgeInMinutes + (numHistoryValues - (counter + 1)) * historyIntervalInMinutes;
-                int ageInSensorMinutes = sensorAgeInMinutes - dataAgeInMinutes;
 
-                // skip the first hour of sensor data as it is faulty
-                if (ageInSensorMinutes > minSensorAgeInMinutes) {
-                    long dataDate = lastReadingDate + (long) (TimeUnit.MINUTES.toMillis(ageInSensorMinutes - lastSensorAgeInMinutes) * timeDriftFactor);
-                    glucoseDataList.add(new GlucoseData(sensor, ageInSensorMinutes, timezoneOffsetInMinutes, glucoseLevelRaw, false, dataDate, rawTemperature, temperatureAdjustment, isErrorData, errorOffset));
-                    ageInSensorMinutesList.add(ageInSensorMinutes);
-                }
-            } else if (rawTagData.isCheckForErrorFlags() && flags == errorFlags) {
-                int dataAgeInMinutes = mostRecentHistoryAgeInMinutes + (numHistoryValues - (counter + 1)) * historyIntervalInMinutes;
-                int ageInSensorMinutes = sensorAgeInMinutes - dataAgeInMinutes;
+            int dataAgeInMinutes = mostRecentHistoryAgeInMinutes + (numHistoryValues - (counter + 1)) * historyIntervalInMinutes;
+            int ageInSensorMinutes = sensorAgeInMinutes - dataAgeInMinutes;
+
+            // skip the first hour of sensor data as it is faulty
+            if (ageInSensorMinutes > minSensorAgeInMinutes) {
                 long dataDate = lastReadingDate + (long) (TimeUnit.MINUTES.toMillis(ageInSensorMinutes - lastSensorAgeInMinutes) * timeDriftFactor);
-                errorList.add(new GlucoseData(sensor, ageInSensorMinutes, timezoneOffsetInMinutes, glucoseLevelRaw, false, dataDate));
+                glucoseDataList.add(new GlucoseData(sensor, ageInSensorMinutes, timezoneOffsetInMinutes, glucoseLevelRaw, false, dataDate, rawTemperature, temperatureAdjustment, isErrorData, errorOffset));
+                ageInSensorMinutesList.add(ageInSensorMinutes);
             }
         }
 
