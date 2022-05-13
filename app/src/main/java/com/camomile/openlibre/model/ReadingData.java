@@ -98,16 +98,17 @@ public class ReadingData extends RealmObject {
 
             int glucoseLevelRaw = rawTagData.getTrendValue(index);
             int flags = rawTagData.getTrendFlags(index);
-            int rawTemperature = rawTagData.getRawTemperature(index);
-            int temperatureAdjustment = rawTagData.getTemperatureAdjustment(index);
-            boolean isErrorData = rawTagData.checkIfErrorData(index);
-            int errorOffset = rawTagData.getErrorOffset(index);
+            int rawTemperature = rawTagData.getRawTemperature(index, true);
+            int temperatureAdjustment = rawTagData.getTemperatureAdjustment(index, true);
+            boolean isErrorData = rawTagData.checkIfErrorData(index, true);
+            int errorOffset = rawTagData.getErrorOffset(index, true);
             if (!rawTagData.isCheckForErrorFlags() || flags != errorFlags) {
                 int dataAgeInMinutes = numTrendValues - counter;
                 int ageInSensorMinutes = sensorAgeInMinutes - dataAgeInMinutes;
                 long dataDate = lastReadingDate + (long) (TimeUnit.MINUTES.toMillis(ageInSensorMinutes - lastSensorAgeInMinutes) * timeDriftFactor);
                 trend.add(new GlucoseData(sensor, ageInSensorMinutes, timezoneOffsetInMinutes, glucoseLevelRaw,
                         true, dataDate, rawTemperature, temperatureAdjustment, isErrorData, errorOffset));
+                Log.d("nfc", "factoryGlucose trend value: " + glucoseLevelRaw + " temperature:" + rawTemperature);
             } else if (rawTagData.isCheckForErrorFlags()) {
                 int dataAgeInMinutes = numTrendValues - counter;
                 int ageInSensorMinutes = sensorAgeInMinutes - dataAgeInMinutes;
@@ -128,10 +129,10 @@ public class ReadingData extends RealmObject {
 
             int glucoseLevelRaw = rawTagData.getHistoryValue(index);
             int flags = rawTagData.getHistoryFlags(index);
-            int rawTemperature = rawTagData.getRawTemperature(index);
-            int temperatureAdjustment = rawTagData.getTemperatureAdjustment(index);
-            boolean isErrorData = rawTagData.checkIfErrorData(index);
-            int errorOffset = rawTagData.getErrorOffset(index);
+            int rawTemperature = rawTagData.getRawTemperature(index, false);
+            int temperatureAdjustment = rawTagData.getTemperatureAdjustment(index, false);
+            boolean isErrorData = rawTagData.checkIfErrorData(index, false);
+            int errorOffset = rawTagData.getErrorOffset(index, false);
             // skip zero values if the sensor has not filled the ring buffer yet completely
             // and skip if we have any error flags
             if (glucoseLevelRaw > 0  && (!rawTagData.isCheckForErrorFlags() || flags != errorFlags)) {
@@ -178,6 +179,7 @@ public class ReadingData extends RealmObject {
                 realmProcessedData.close();
                 return;
             }
+            Log.d("nfc", "factoryGlucose history value: " + glucoseData.getGlucoseLevelRaw() + " temperature:" + glucoseData.getRawTemperature());
             history.add(glucoseData);
         }
 
