@@ -2,8 +2,11 @@ package com.camomile.openlibre.model;
 
 import android.util.Log;
 
+import androidx.annotation.NonNull;
+
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
 import io.realm.Realm;
@@ -31,6 +34,7 @@ public class ReadingData extends RealmObject {
     public static final int numHistoryValues = 32;
     public static final int historyIntervalInMinutes = 15;
     public static final int numTrendValues = 16;
+    public static final int errorFlags = 800;
 
     @PrimaryKey
     private String id;
@@ -40,6 +44,8 @@ public class ReadingData extends RealmObject {
     private int timezoneOffsetInMinutes;
     private RealmList<GlucoseData> trend = new RealmList<>();
     private RealmList<GlucoseData> history = new RealmList<>();
+
+    private RealmList<GlucoseData> errorList = new RealmList<>();
 
     public ReadingData() {}
     public ReadingData(RawTagData rawTagData) {
@@ -91,36 +97,46 @@ public class ReadingData extends RealmObject {
             int index = (indexTrend + counter) % numTrendValues;
 
             int glucoseLevelRaw = rawTagData.getTrendValue(index);
-            // skip zero values if the sensor has not filled the ring buffer yet completely
-            if (glucoseLevelRaw > 0) {
-                int dataAgeInMinutes = numTrendValues - counter;
-                int ageInSensorMinutes = sensorAgeInMinutes - dataAgeInMinutes;
-                long dataDate = lastReadingDate + (long) (TimeUnit.MINUTES.toMillis(ageInSensorMinutes - lastSensorAgeInMinutes) * timeDriftFactor);
+            int flags = rawTagData.getTrendFlags(index);
+            int rawTemperature = rawTagData.getRawTemperature(index, true);
+            int temperatureAdjustment = rawTagData.getTemperatureAdjustment(index, true);
+            boolean isErrorData = rawTagData.checkIfErrorData(index, true);
+            int errorOffset = rawTagData.getErrorOffset(index, true);
 
-                trend.add(new GlucoseData(sensor, ageInSensorMinutes, timezoneOffsetInMinutes, glucoseLevelRaw, true, dataDate));
+            int dataAgeInMinutes = numTrendValues - counter;
+            int ageInSensorMinutes = sensorAgeInMinutes - dataAgeInMinutes;
+
+            if (ageInSensorMinutes > minSensorAgeInMinutes) {
+                long dataDate = lastReadingDate + (long) (TimeUnit.MINUTES.toMillis(ageInSensorMinutes - lastSensorAgeInMinutes) * timeDriftFactor);
+                trend.add(new GlucoseData(sensor, ageInSensorMinutes, timezoneOffsetInMinutes, glucoseLevelRaw,
+                        true, dataDate, rawTemperature, temperatureAdjustment, isErrorData, errorOffset));
             }
         }
 
         int indexHistory = rawTagData.getIndexHistory();
 
-        ArrayList<Integer> glucoseLevels = new ArrayList<>();
         ArrayList<Integer> ageInSensorMinutesList = new ArrayList<>();
+        ArrayList<GlucoseData> glucoseDataList = new ArrayList<>();
 
         // read history values from ring buffer, starting at indexHistory (bytes 124-315)
         for (int counter = 0; counter < numHistoryValues; counter++) {
             int index = (indexHistory + counter) % numHistoryValues;
 
             int glucoseLevelRaw = rawTagData.getHistoryValue(index);
-            // skip zero values if the sensor has not filled the ring buffer yet completely
-            if (glucoseLevelRaw > 0) {
-                int dataAgeInMinutes = mostRecentHistoryAgeInMinutes + (numHistoryValues - (counter + 1)) * historyIntervalInMinutes;
-                int ageInSensorMinutes = sensorAgeInMinutes - dataAgeInMinutes;
+            int flags = rawTagData.getHistoryFlags(index);
+            int rawTemperature = rawTagData.getRawTemperature(index, false);
+            int temperatureAdjustment = rawTagData.getTemperatureAdjustment(index, false);
+            boolean isErrorData = rawTagData.checkIfErrorData(index, false);
+            int errorOffset = rawTagData.getErrorOffset(index, false);
 
-                // skip the first hour of sensor data as it is faulty
-                if (ageInSensorMinutes > minSensorAgeInMinutes) {
-                    glucoseLevels.add(glucoseLevelRaw);
-                    ageInSensorMinutesList.add(ageInSensorMinutes);
-                }
+            int dataAgeInMinutes = mostRecentHistoryAgeInMinutes + (numHistoryValues - (counter + 1)) * historyIntervalInMinutes;
+            int ageInSensorMinutes = sensorAgeInMinutes - dataAgeInMinutes;
+
+            // skip the first hour of sensor data as it is faulty
+            if (ageInSensorMinutes > minSensorAgeInMinutes) {
+                long dataDate = lastReadingDate + (long) (TimeUnit.MINUTES.toMillis(ageInSensorMinutes - lastSensorAgeInMinutes) * timeDriftFactor);
+                glucoseDataList.add(new GlucoseData(sensor, ageInSensorMinutes, timezoneOffsetInMinutes, glucoseLevelRaw, false, dataDate, rawTemperature, temperatureAdjustment, isErrorData, errorOffset));
+                ageInSensorMinutesList.add(ageInSensorMinutes);
             }
         }
 
@@ -132,7 +148,7 @@ public class ReadingData extends RealmObject {
 
         // try to shift age to make this reading fit to older readings
         try {
-            shiftAgeToMatchPreviousReadings(realmProcessedData, glucoseLevels, ageInSensorMinutesList);
+            shiftAgeToMatchPreviousReadings(realmProcessedData, makeGlucoseLevelsList(glucoseDataList), ageInSensorMinutesList);
         } catch (RuntimeException e) {
             Log.e("OpenLibre::ReadingData", e.getMessage() + " For reading with id " + id);
             realmProcessedData.close();
@@ -141,23 +157,45 @@ public class ReadingData extends RealmObject {
 
 
         // create history data point list
-        for (int i = 0; i < glucoseLevels.size(); i++) {
-            int glucoseLevelRaw = glucoseLevels.get(i);
+        for (int i = 0; i < glucoseDataList.size(); i++) {
+            GlucoseData data = glucoseDataList.get(i);
             int ageInSensorMinutes = ageInSensorMinutesList.get(i);
-            long dataDate = lastReadingDate + (long) (TimeUnit.MINUTES.toMillis(ageInSensorMinutes - lastSensorAgeInMinutes) * timeDriftFactor);
 
-            GlucoseData glucoseData = makeGlucoseData(realmProcessedData, glucoseLevelRaw, ageInSensorMinutes, dataDate);
-            if(glucoseData == null) {
+            GlucoseData glucoseData = makeGlucoseData(realmProcessedData, data, ageInSensorMinutes);
+            if (glucoseData == null) {
                 realmProcessedData.close();
                 return;
             }
+            Log.d("nfc", "factoryGlucose history value: " + glucoseData.getGlucoseLevelRaw() + " temperature:" + glucoseData.getRawTemperature());
             history.add(glucoseData);
         }
 
         realmProcessedData.close();
     }
 
-    private GlucoseData makeGlucoseData(Realm realmProcessedData, int glucoseLevelRaw, int ageInSensorMinutes, long dataDate) {
+    private GlucoseData makeGlucoseData(Realm realmProcessedData, GlucoseData glucoseData, int ageInSensorMinutes) {
+        // if this data point has been read from this sensor before, reuse the object form the database, instead of changing the old data
+        RealmResults<GlucoseData> previousGlucoseData = realmProcessedData.where(GlucoseData.class)
+                .equalTo(GlucoseData.ID, GlucoseData.generateId(sensor, sensorAgeInMinutes, false, glucoseData.getGlucoseLevelRaw())).findAll();
+        // check if a valid previous data point was found
+        if (!previousGlucoseData.isEmpty()) {
+            if (previousGlucoseData.first().getGlucoseLevelRaw() == glucoseData.getGlucoseLevelRaw()) {
+                return previousGlucoseData.first();
+            }
+            // if the old value does not equal the new one and the sensor has been running for more than three hours, there is an error in the data
+            if (ageInSensorMinutes > 3 * minSensorAgeInMinutes) {
+                Log.e("OpenLibre::ReadingData", "error in glucose level raw:" + previousGlucoseData.first().getGlucoseLevelRaw() + " != " + glucoseData.getGlucoseLevelRaw()
+                        + " for glucose data with id: " + previousGlucoseData.first().getId());
+                history.clear();
+                trend.clear();
+                return null;
+            }
+        }
+        return glucoseData;
+    }
+
+    private GlucoseData makeGlucoseData(Realm realmProcessedData, int glucoseLevelRaw, int ageInSensorMinutes, long dataDate, int rawTemperature,
+                                        int temperatureAdjustment, boolean hasError, int error) {
         // if this data point has been read from this sensor before, reuse the object form the database, instead of changing the old data
         RealmResults<GlucoseData> previousGlucoseData = realmProcessedData.where(GlucoseData.class)
                 .equalTo(GlucoseData.ID, GlucoseData.generateId(sensor, ageInSensorMinutes, false, glucoseLevelRaw)).findAll();
@@ -176,7 +214,15 @@ public class ReadingData extends RealmObject {
                 return null;
             }
         }
-        return new GlucoseData(sensor, ageInSensorMinutes, timezoneOffsetInMinutes, glucoseLevelRaw, false, dataDate);
+        return new GlucoseData(sensor, ageInSensorMinutes, timezoneOffsetInMinutes, glucoseLevelRaw, false, dataDate, rawTemperature, temperatureAdjustment, hasError, error);
+    }
+
+    private ArrayList<Integer> makeGlucoseLevelsList(ArrayList<GlucoseData> glucoseDataList) {
+        ArrayList<Integer> glucoseLevels = new ArrayList<>();
+        for(int i=0; i< glucoseDataList.size(); i++) {
+            glucoseLevels.add(glucoseDataList.get(i).getGlucoseLevelRaw());
+        }
+        return glucoseLevels;
     }
 
     private void shiftAgeToMatchPreviousReadings(Realm realmProcessedData, ArrayList<Integer> glucoseLevels, ArrayList<Integer> ageInSensorMinutesList) {
@@ -261,4 +307,48 @@ public class ReadingData extends RealmObject {
         return sensor;
     }
 
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof ReadingData)) return false;
+        ReadingData that = (ReadingData) o;
+        return getSensorAgeInMinutes() == that.getSensorAgeInMinutes() &&
+                getDate() == that.getDate() &&
+                getTimezoneOffsetInMinutes() == that.getTimezoneOffsetInMinutes() &&
+                getId().equals(that.getId()) &&
+                getSensor().equals(that.getSensor()) &&
+                getTrend().equals(that.getTrend()) &&
+                getHistory().equals(that.getHistory());
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(getId(), getSensor(), getSensorAgeInMinutes(), getDate(), getTimezoneOffsetInMinutes(), getTrend(), getHistory());
+    }
+
+    @NonNull
+    @Override
+    public String toString() {
+        StringBuilder trendString = new StringBuilder();
+        for (int i = 0; i < trend.size(); i++) {
+            trendString.append(trend.get(i).toString()).append(", ");
+        }
+        StringBuilder historyString = new StringBuilder();
+        for (int i = 0; i < history.size(); i++) {
+            historyString.append(history.get(i).toString()).append(", ");
+        }
+        return "ReadingData{" +
+                "id='" + id + '\'' +
+                ", sensor=" + sensor +
+                ", sensorAgeInMinutes=" + sensorAgeInMinutes +
+                ", date=" + date +
+                ", timezoneOffsetInMinutes=" + timezoneOffsetInMinutes +
+                ", trend=" + trendString.toString() +
+                ", history=" + historyString.toString() +
+                '}';
+    }
+
+    public List<GlucoseData> getErrorList() {
+        return errorList;
+    }
 }

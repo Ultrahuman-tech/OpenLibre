@@ -1,8 +1,10 @@
 package com.camomile.openlibre.model;
 
-import android.support.annotation.NonNull;
+import androidx.annotation.NonNull;
+
 import java.text.DecimalFormat;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
 import io.realm.RealmObject;
@@ -27,8 +29,29 @@ public class GlucoseData extends RealmObject implements Comparable<GlucoseData> 
     private int glucoseLevelRaw = -1; // in mg/l = 0.1 mg/dl
     private long date;
     private int timezoneOffsetInMinutes;
+    private boolean hasError = false;
+    private int error = -1;
+    private int rawTemperature = 0;
+    private int temperatureAdjustment = 0;
 
     public GlucoseData() {}
+
+    public GlucoseData(SensorData sensor, int ageInSensorMinutes, int timezoneOffsetInMinutes,
+                       int glucoseLevelRaw, boolean isTrendData, long date, int rawTemperature,
+                       int temperatureAdjustment, boolean hasError, int error) {
+        this.sensor = sensor;
+        this.ageInSensorMinutes = ageInSensorMinutes;
+        this.timezoneOffsetInMinutes = timezoneOffsetInMinutes;
+        this.glucoseLevelRaw = glucoseLevelRaw;
+        this.isTrendData = isTrendData;
+        this.date = date;
+        this.temperatureAdjustment = temperatureAdjustment;
+        this.rawTemperature = rawTemperature;
+        this.hasError = hasError;
+        this.error = error;
+        id = generateId(sensor, ageInSensorMinutes, isTrendData, glucoseLevelRaw);
+    }
+
     public GlucoseData(SensorData sensor, int ageInSensorMinutes, int timezoneOffsetInMinutes, int glucoseLevelRaw, boolean isTrendData, long date) {
         this.sensor = sensor;
         this.ageInSensorMinutes = ageInSensorMinutes;
@@ -38,6 +61,7 @@ public class GlucoseData extends RealmObject implements Comparable<GlucoseData> 
         this.date = date;
         id = generateId(sensor, ageInSensorMinutes, isTrendData, glucoseLevelRaw);
     }
+
     public GlucoseData(SensorData sensor, int ageInSensorMinutes, int timezoneOffsetInMinutes, int glucoseLevelRaw, boolean isTrendData) {
         this(sensor, ageInSensorMinutes, timezoneOffsetInMinutes, glucoseLevelRaw, isTrendData, sensor.getStartDate() + TimeUnit.MINUTES.toMillis(ageInSensorMinutes));
     }
@@ -131,11 +155,64 @@ public class GlucoseData extends RealmObject implements Comparable<GlucoseData> 
         this.timezoneOffsetInMinutes = timezoneOffsetInMinutes;
     }
 
-    int getGlucoseLevelRaw() {
+    public int getGlucoseLevelRaw() {
         return glucoseLevelRaw;
     }
 
     public String getId() {
         return id;
+    }
+
+    public boolean hasError() {
+        return hasError;
+    }
+
+    public int getError() {
+        return error;
+    }
+
+    public int getRawTemperature() {
+        return rawTemperature;
+    }
+
+    public int getTemperatureAdjustment() {
+        return temperatureAdjustment;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof GlucoseData)) return false;
+        GlucoseData that = (GlucoseData) o;
+        return isTrendData() == that.isTrendData() &&
+                getAgeInSensorMinutes() == that.getAgeInSensorMinutes() &&
+                getGlucoseLevelRaw() == that.getGlucoseLevelRaw() &&
+                getDate() == that.getDate() &&
+                getTimezoneOffsetInMinutes() == that.getTimezoneOffsetInMinutes() &&
+                getId().equals(that.getId()) &&
+                getSensor().equals(that.getSensor());
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(getId(), getSensor(), isTrendData(), getAgeInSensorMinutes(), getGlucoseLevelRaw(), getDate(), getTimezoneOffsetInMinutes());
+    }
+
+    @NonNull
+    @Override
+    public String toString() {
+        return "GlucoseData{" +
+                "id='" + id + '\'' +
+                ", sensor=" + sensor +
+                ", isTrendData=" + isTrendData +
+                ", ageInSensorMinutes=" + ageInSensorMinutes +
+                ", glucoseLevelRaw=" + glucoseLevelRaw +
+                ", date=" + date +
+                ", timezoneOffsetInMinutes=" + timezoneOffsetInMinutes +
+                ", rawTemperature=" + rawTemperature +
+                ", temperatureAdjustment=" + temperatureAdjustment +
+                ", hasError=" + hasError +
+                ", error =" + error +
+                '}';
     }
 }
